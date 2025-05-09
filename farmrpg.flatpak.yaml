@@ -1,0 +1,21 @@
+app-id: com.openarchadia.farmrpg
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: farmrpg
+finish-args:
+  - --socket=wayland
+  - --device=dri
+  - --share=ipc
+  - --socket=pulseaudio
+modules:
+  - name: farmrpg
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/bin
+      - cp farmrpg /app/bin/
+      - mkdir -p /app/bin/assets
+      - cp -r assets/* /app/bin/assets/
+    sources:
+      - type: dir
+        path: .
