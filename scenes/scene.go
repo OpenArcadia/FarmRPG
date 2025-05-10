@@ -29,3 +29,9 @@ func Update() {
 
 	current.Render()
 }
+
+func Dispose() {
+	if current != nil {
+		current.Dispose()
+	}
+}

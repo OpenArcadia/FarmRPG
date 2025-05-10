@@ -44,17 +44,17 @@ func NewInventory() *Inventory {
 	waterAsset := rl.LoadTexture(waterAssetPath)
 
 	defaultTools := []*InventoryItem{
-		&InventoryItem{
+		{
 			Name:  "basic axe",
 			Asset: &axeAsset,
 			Tool:  Axe,
 		},
-		&InventoryItem{
+		{
 			Name:  "basic hoe",
 			Asset: &hoeAsset,
 			Tool:  Hoe,
 		},
-		&InventoryItem{
+		{
 			Name:  "basic water",
 			Asset: &waterAsset,
 			Tool:  Water,
@@ -80,6 +80,9 @@ func (in *Inventory) Update() {
 	}
 	if rl.IsKeyDown(rl.KeyThree) {
 		in.SelectedIndex = 2
+	}
+	if rl.IsKeyDown(rl.KeyFour) {
+		in.SelectedIndex = 3
 	}
 }
 
@@ -139,4 +142,10 @@ func (in *Inventory) Draw() {
 		Width:  float32(itemSize + 4),
 		Height: float32(itemSize + 4),
 	}, 3, rl.Gold)
+}
+
+func (in *Inventory) Dispose() {
+	for _, tool := range in.Tools {
+		rl.UnloadTexture(*tool.Asset)
+	}
 }

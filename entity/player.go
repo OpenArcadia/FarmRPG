@@ -2,6 +2,7 @@ package entity
 
 import (
 	"fmt"
+	"math"
 
 	"com.openarcadia.farmrpg/scenes/ui"
 	"com.openarcadia.farmrpg/utils"
@@ -50,7 +51,7 @@ type Player struct {
 	inventory  *ui.Inventory
 }
 
-func NewPlayer(x, y float32) *Player {
+func NewPlayer(x, y float32, inventory *ui.Inventory) *Player {
 
 	animationsDict := &map[string][]*rl.Texture2D{
 		"down":        make([]*rl.Texture2D, 0),
@@ -90,9 +91,9 @@ func NewPlayer(x, y float32) *Player {
 		height:     72,
 		width:      60,
 		animations: animationsDict,
-		status:     DownAxe,
+		status:     DownIdle,
 		frameIndex: 0,
-		inventory:  ui.NewInventory(),
+		inventory:  inventory,
 	}
 
 	timerMap := map[string]*timer.Timer{
@@ -107,12 +108,9 @@ func NewPlayer(x, y float32) *Player {
 
 func (p *Player) Draw() {
 	rl.DrawTexture(*(*p.animations)[p.status.ToString()][int(p.frameIndex)], int32(p.x-55), int32(p.y-32), rl.White)
-	p.inventory.Draw()
 }
 
 func (p *Player) Update() {
-	p.inventory.Update()
-
 	if !(*p.timer)["use tool"].IsActive() {
 		p.handleInput()
 		// if player is not moving then setting the state based on movement direction
@@ -139,88 +137,89 @@ func (p *Player) Update() {
 	p.animate()
 
 	if (*p.timer)["use tool"].IsActive() {
+		item := p.inventory.Tools[p.inventory.SelectedIndex]
+		if item == nil {
+			(*p.timer)["use tool"].Deactivate()
+			return
+		}
+
 		switch p.status {
 		case LeftIdle, Left:
-			if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Axe {
+			if item.Tool == ui.Axe {
 				p.status = LeftAxe
-			} else if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Water {
+			} else if item.Tool == ui.Water {
 				p.status = LeftWater
-			} else if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Hoe {
+			} else if item.Tool == ui.Hoe {
 				p.status = LeftHoe
 			}
 		case Right, RightIdle:
-			if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Axe {
+			if item.Tool == ui.Axe {
 				p.status = RightAxe
-			} else if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Water {
+			} else if item.Tool == ui.Water {
 				p.status = RightWater
-			} else if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Hoe {
+			} else if item.Tool == ui.Hoe {
 				p.status = RightHoe
 			}
 		case Up, UpIdle:
-			if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Axe {
+			if item.Tool == ui.Axe {
 				p.status = UpAxe
-			} else if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Water {
+			} else if item.Tool == ui.Water {
 				p.status = UpWater
-			} else if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Hoe {
+			} else if item.Tool == ui.Hoe {
 				p.status = UpHoe
 			}
 		case Down, DownIdle:
-			if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Axe {
+			if item.Tool == ui.Axe {
 				p.status = DownAxe
-			} else if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Water {
+			} else if item.Tool == ui.Water {
 				p.status = DownWater
-			} else if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Hoe {
+			} else if item.Tool == ui.Hoe {
 				p.status = DownHoe
 			}
 		}
+
 	}
 }
 
 func (p *Player) handleInput() {
 	dt := rl.GetFrameTime()
 
-	// movement
+	var moveX, moveY float32
+
 	if rl.IsKeyDown(rl.KeyW) {
-		if p.y <= 0 {
-			p.y = 0
-			p.status = UpIdle
-		} else {
-			p.y -= dt * 250
-			p.status = Up
-		}
+		moveY -= 1
+		p.status = Up
 	}
 	if rl.IsKeyDown(rl.KeyS) {
-		if p.y+float32(p.height) >= float32(rl.GetScreenHeight()) {
-			p.y = float32(rl.GetScreenHeight()) - float32(p.height)
-			p.status = DownIdle
-		} else {
-			p.y += dt * 250
-			p.status = Down
-		}
+		moveY += 1
+		p.status = Down
 	}
 	if rl.IsKeyDown(rl.KeyD) {
-		if p.x+float32(p.width) >= float32(rl.GetScreenWidth()) {
-			p.x = float32(rl.GetScreenWidth()) - float32(p.width)
-			p.status = RightIdle
-		} else {
-			p.x += dt * 250
-			p.status = Right
-		}
+		moveX += 1
+		p.status = Right
 	}
 	if rl.IsKeyDown(rl.KeyA) {
-		if p.x <= 0 {
-			p.x = 0
-			p.status = LeftIdle
-		} else {
-			p.x -= dt * 250
-			p.status = Left
-		}
+		moveX -= 1
+		p.status = Left
 	}
+
+	// Normalize the direction vector
+	length := float32(math.Sqrt(float64(moveX*moveX + moveY*moveY)))
+	if length != 0 {
+		moveX /= length
+		moveY /= length
+	}
+
+	speed := dt * 250
+	p.x += moveX * speed
+	p.y += moveY * speed
 
 	// tools
 	if rl.IsMouseButtonDown(rl.MouseButtonLeft) && !(*p.timer)["use tool"].IsActive() {
-		(*p.timer)["use tool"].Activate()
-		p.frameIndex = 0
+		if p.inventory.SelectedIndex < len(p.inventory.Tools) {
+			(*p.timer)["use tool"].Activate()
+			p.frameIndex = 0
+		}
 	}
 }
 

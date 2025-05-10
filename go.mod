@@ -3,8 +3,12 @@ module com.openarcadia.farmrpg
 go 1.24.2
 
 require (
+	github.com/akashKarmakar02/tmx v0.0.0-20250510063828-abcee67d0e6f
+	github.com/gen2brain/raylib-go/raylib v0.0.0-20250504022611-e6017e5fc409
+)
+
+require (
 	github.com/ebitengine/purego v0.8.2 // indirect
-	github.com/gen2brain/raylib-go/raylib v0.0.0-20250409052854-a4292f0f0412 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 )

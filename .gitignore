@@ -3,3 +3,5 @@ farmrpg.flatpak
 /repo
 /build-dir
 /.flatpak-builder
+/android/android/build
+/android/.gradle
