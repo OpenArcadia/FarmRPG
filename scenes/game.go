@@ -1,6 +1,8 @@
 package scenes
 
 import (
+	"sync"
+
 	"com.openarcadia.farmrpg/entity"
 	"com.openarcadia.farmrpg/scenes/ui"
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -25,35 +27,59 @@ func (g *Game) Create() {
 	}
 
 }
-
 func (g *Game) Render() {
-	rl.ClearBackground(rl.White)
-
+	// Update camera target
 	g.Camera.Target = rl.NewVector2(g.Player.GetRect().X, g.Player.GetRect().Y)
 
+	// Step 1: Run updates in parallel
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+		g.Level.Water.Animate()
+	}()
+
+	go func() {
+		defer wg.Done()
+		g.Player.Update()
+	}()
+
+	go func() {
+		defer wg.Done()
+		g.Inventory.Update()
+	}()
+
+	wg.Wait() // Ensure updates are complete before rendering
+
+	// Step 2: Render everything (on main thread only)
+	rl.ClearBackground(rl.White)
 	rl.BeginMode2D(*g.Camera)
 
-	// Draw the level background
+	for _, loc := range g.Level.WaterLocations {
+		g.Level.Water.Draw(loc.X, loc.Y)
+	}
+
 	if g.Level.BackgroundTexture != nil {
 		rl.DrawTexture(*g.Level.BackgroundTexture, 0, 0, rl.White)
 	}
 
 	for _, tile := range g.Level.MapTextures {
 		dest := rl.NewVector2(float32(tile.X), float32(tile.Y))
-		rl.DrawTextureRec(*g.Level.TextureCache[tile.TextureID], rl.NewRectangle(float32(tile.TileX), float32(tile.TileY), float32(64), float32(64)), dest, rl.White)
+		rl.DrawTextureRec(
+			*g.Level.TextureCache[tile.TextureID],
+			rl.NewRectangle(float32(tile.TileX), float32(tile.TileY), 64, 64),
+			dest,
+			rl.White,
+		)
 	}
 
-	// Draw player and UI
 	g.Player.Draw()
-	// camera will not affect other element drawing
 	rl.EndMode2D()
 
 	g.Inventory.Draw()
 
-	// // Draw FPS and update logic
 	rl.DrawFPS(10, 10)
-	g.Player.Update()
-	g.Inventory.Update()
 }
 
 func (g *Game) Dispose() {
