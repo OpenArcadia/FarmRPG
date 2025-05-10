@@ -107,6 +107,7 @@ func NewPlayer(x, y float32, inventory *ui.Inventory) *Player {
 }
 
 func (p *Player) Draw() {
+	rl.DrawEllipse(int32(p.x+32), int32(p.y+64), 20, 8, rl.Fade(rl.Black, 0.3))
 	rl.DrawTexture(*(*p.animations)[p.status.ToString()][int(p.frameIndex)], int32(p.x-55), int32(p.y-32), rl.White)
 }
 
