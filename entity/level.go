@@ -21,6 +21,8 @@ type Level struct {
 	BackgroundTexture *rl.Texture2D
 	MapTextures       []*LevelData
 	TextureCache      map[int]*rl.Texture2D
+	Water             *Water
+	WaterLocations    []*WaterLocation
 }
 
 func NewLevel() *Level {
@@ -39,15 +41,22 @@ func NewLevel() *Level {
 	}
 
 	textures := make([]*LevelData, 0)
-	layers := []string{"Forest Grass", "HouseFloor", "HouseFurnitureBottom", "HouseWalls", "HouseFurnitureTop", "Fence"}
+	layers := []string{"Water", "HouseFloor", "HouseFurnitureBottom", "HouseWalls", "HouseFurnitureTop", "Fence", "Decoration"}
 	textureMap := map[int]*rl.Texture2D{}
 	texturePathMap := map[string]int{}
+	waterLocations := make([]*WaterLocation, 0)
 
 	for _, layer := range layers {
 		if houseBottom := tileMap.LayerWithName(layer); houseBottom != nil {
 			tiles, _ := houseBottom.TileDefs(tileMap.TileSets)
+			if layer == "Decoration" {
+				for _, t := range tiles {
+					fmt.Print(t)
+				}
+				fmt.Print("\n")
+			}
 			for i, t := range tiles {
-				if t.ID != 0 {
+				if t.GlobalID != 0 {
 					parts := strings.Split(t.TileSet.Image.Source, "/")
 					joined := strings.Join(parts[2:], "/")
 
@@ -58,6 +67,15 @@ func NewLevel() *Level {
 
 					mapX := (i % tileMap.Width) * tileMap.TileWidth
 					mapY := (i / tileMap.Width) * tileMap.TileHeight
+
+					if layer == "Water" {
+						waterLocations = append(waterLocations, &WaterLocation{
+							X: mapX,
+							Y: mapY,
+						})
+						continue
+					}
+
 					if texturePathMap[joined] == 0 {
 						texture := rl.LoadTexture(joined)
 						texturePathMap[joined] = int(texture.ID)
@@ -88,6 +106,8 @@ func NewLevel() *Level {
 		BackgroundTexture: levelTexture,
 		MapTextures:       textures,
 		TextureCache:      textureMap,
+		Water:             NewWater(),
+		WaterLocations:    waterLocations,
 	}
 }
 
