@@ -1,6 +1,7 @@
 package scenes
 
 import (
+	"sort"
 	"sync"
 
 	"com.openarcadia.farmrpg/entity"
@@ -15,6 +16,12 @@ type Game struct {
 	Level     *entity.Level
 }
 
+type Drawable struct {
+	Z        int
+	Y        float32
+	DrawFunc func()
+}
+
 func (g *Game) Create() {
 	g.Level = entity.NewLevel()
 	g.Inventory = ui.NewInventory()
@@ -25,8 +32,8 @@ func (g *Game) Create() {
 		Rotation: 0.0,
 		Zoom:     1.0,
 	}
-
 }
+
 func (g *Game) Render() {
 	// Update camera target
 	g.Camera.Target = rl.NewVector2(g.Player.GetRect().X, g.Player.GetRect().Y)
@@ -64,17 +71,56 @@ func (g *Game) Render() {
 		rl.DrawTexture(*g.Level.BackgroundTexture, 0, 0, rl.White)
 	}
 
-	for _, tile := range g.Level.MapTextures {
-		dest := rl.NewVector2(float32(tile.X), float32(tile.Y))
-		rl.DrawTextureRec(
-			*g.Level.TextureCache[tile.TextureID],
-			rl.NewRectangle(float32(tile.TileX), float32(tile.TileY), 64, 64),
-			dest,
-			rl.White,
-		)
+	var drawables []Drawable
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for _, tile := range g.Level.MapTextures {
+			tileZ := tile.Z // Assume tile.Z is available
+			tileY := float32(tile.Y)
+			tileCopy := tile
+
+			drawables = append(drawables, Drawable{
+				Z: tileZ,
+				Y: tileY,
+				DrawFunc: func() {
+					dest := rl.NewVector2(float32(tileCopy.X), float32(tileCopy.Y))
+					rl.DrawTextureRec(
+						*g.Level.TextureCache[tileCopy.TextureID],
+						rl.NewRectangle(float32(tileCopy.TileX), float32(tileCopy.TileY), 64, 64),
+						dest,
+						rl.White,
+					)
+				},
+			})
+		}
+
+		// Add player as Z = 2 drawable
+		playerY := g.Player.GetRect().Y
+		drawables = append(drawables, Drawable{
+			Z: 2,
+			Y: playerY,
+			DrawFunc: func() {
+				g.Player.Draw()
+			},
+		})
+
+		// First: sort by Z ascending, then by Y (only when Z > 0)
+		sort.Slice(drawables, func(i, j int) bool {
+			if drawables[i].Z != drawables[j].Z {
+				return drawables[i].Z < drawables[j].Z
+			}
+			return drawables[i].Y < drawables[j].Y
+		})
+	}()
+
+	wg.Wait()
+	// Draw in sorted order
+	for _, d := range drawables {
+		d.DrawFunc()
 	}
 
-	g.Player.Draw()
 	rl.EndMode2D()
 
 	g.Inventory.Draw()
