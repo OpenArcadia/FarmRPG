@@ -32,7 +32,7 @@ type Inventory struct {
 	Tools         []*InventoryItem
 }
 
-var itemSize = 60
+var itemSize = 80
 
 func NewInventory() *Inventory {
 	axeAssetPath := utils.ImportAssetPath("overlay/axe.png")
@@ -91,7 +91,7 @@ func (in *Inventory) Draw() {
 	screenHeight := rl.GetScreenHeight()
 
 	spacing := 0
-	borderWidth := 3
+	borderWidth := 5
 
 	totalWidth := in.MaxSize*itemSize + (in.MaxSize-1)*spacing
 	startX := (screenWidth - totalWidth) / 2
@@ -101,10 +101,8 @@ func (in *Inventory) Draw() {
 		x := startX + idx*(itemSize+spacing)
 		y := startY
 
-		// Slot background (blur-like solid color)
 		rl.DrawRectangle(int32(x), int32(y), int32(itemSize), int32(itemSize), rl.Color{R: 238, G: 222, B: 224, A: 200})
 
-		// Thick border
 		for b := 0; b < borderWidth; b++ {
 			rl.DrawRectangleLines(
 				int32(x+b), int32(y+b),
@@ -113,10 +111,9 @@ func (in *Inventory) Draw() {
 			)
 		}
 
-		// Draw item texture if present in the tools list
 		if idx < len(in.Tools) && in.Tools[idx] != nil && in.Tools[idx].Asset != nil {
 			tex := in.Tools[idx].Asset
-			// Center the texture inside the slot
+
 			texWidth := tex.Width
 			texHeight := tex.Height
 
@@ -127,11 +124,6 @@ func (in *Inventory) Draw() {
 			posY := float32(y) + (float32(itemSize)-drawHeight)/2
 
 			rl.DrawTextureEx(*tex, rl.Vector2{X: posX, Y: posY}, 0, scale, rl.White)
-		}
-
-		// Highlight selected slot
-		if idx == in.SelectedIndex {
-
 		}
 	}
 	x := startX + in.SelectedIndex*(itemSize+spacing)
