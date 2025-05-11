@@ -77,7 +77,7 @@ func (g *Game) Render() {
 	go func() {
 		defer wg.Done()
 		for _, tile := range g.Level.MapTextures {
-			tileZ := tile.Z // Assume tile.Z is available
+			tileZ := tile.Z
 			tileY := float32(tile.Y)
 			tileCopy := tile
 
@@ -88,7 +88,7 @@ func (g *Game) Render() {
 					dest := rl.NewVector2(float32(tileCopy.X), float32(tileCopy.Y))
 					rl.DrawTextureRec(
 						*g.Level.TextureCache[tileCopy.TextureID],
-						rl.NewRectangle(float32(tileCopy.TileX), float32(tileCopy.TileY), 64, 64),
+						rl.NewRectangle(float32(tileCopy.TileX), float32(tileCopy.TileY), float32(tileCopy.Width), float32(tileCopy.Height)),
 						dest,
 						rl.White,
 					)

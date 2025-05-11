@@ -14,6 +14,8 @@ type LevelData struct {
 	X         int
 	Y         int
 	Z         int
+	Height    int
+	Width     int
 	TileX     int
 	TileY     int
 }
@@ -80,8 +82,11 @@ func NewLevel() *Level {
 							TextureID: int(texture.ID),
 							X:         mapX,
 							Y:         mapY,
+							Z:         0,
 							TileX:     srcX,
 							TileY:     srcY,
+							Height:    64,
+							Width:     64,
 						})
 					} else {
 						textures = append(textures, &LevelData{
@@ -89,6 +94,8 @@ func NewLevel() *Level {
 							X:         mapX,
 							Y:         mapY,
 							Z:         0,
+							Height:    64,
+							Width:     64,
 							TileX:     srcX,
 							TileY:     srcY,
 						})
@@ -125,6 +132,9 @@ func NewLevel() *Level {
 							TextureID: int(texture.ID),
 							X:         mapX,
 							Y:         mapY,
+							Z:         2,
+							Height:    64,
+							Width:     64,
 							TileX:     srcX,
 							TileY:     srcY,
 						})
@@ -134,11 +144,77 @@ func NewLevel() *Level {
 							X:         mapX,
 							Y:         mapY,
 							Z:         2,
+							Height:    64,
+							Width:     64,
 							TileX:     srcX,
 							TileY:     srcY,
 						})
 					}
 
+				}
+			}
+		}
+	}
+
+	objectGroups := []string{"Decoration"}
+
+	for _, objectGroupName := range objectGroups {
+		if objectGroup := tileMap.ObjectGroupWithName(objectGroupName); objectGroup != nil {
+			fmt.Println("Found", objectGroupName)
+
+			for _, obj := range objectGroup.Objects {
+				if obj.GlobalID == 0 {
+					continue
+				}
+
+				// Resolve the tileset from the global ID
+				var tileSet *tmx.TileSet // change this to match your types
+				var localID uint32
+				for _, ts := range tileMap.TileSets {
+					if obj.GlobalID >= ts.FirstGlobalID && int(obj.GlobalID) < int(ts.FirstGlobalID)+ts.TileCount {
+						tileSet = &ts
+						localID = uint32(obj.GlobalID) - uint32(ts.FirstGlobalID)
+						break
+					}
+				}
+				if tileSet == nil {
+					continue // GID not found in any tileset
+				}
+
+				// Get texture path
+				parts := strings.Split(tileSet.TileWithID(tmx.TileID(localID)).Image.Source, "/")
+				joined := strings.Join(parts[2:], "/")
+
+				// Calculate sprite source position (from tileset)
+
+				// // Use object's X/Y from map
+				mapX := int(obj.X)
+				mapY := int(obj.Y) // Y needs correction (Tiled anchor is bottom-left)
+
+				if texturePathMap[joined] == 0 {
+					texture := rl.LoadTexture(joined)
+					texturePathMap[joined] = int(texture.ID)
+					textureMap[int(texture.ID)] = &texture
+					textures = append(textures, &LevelData{
+						TextureID: int(texture.ID),
+						X:         mapX,
+						Y:         mapY - int(texture.Height),
+						Height:    int(texture.Height),
+						Width:     int(texture.Width),
+						TileX:     0,
+						TileY:     0,
+					})
+				} else {
+					textures = append(textures, &LevelData{
+						TextureID: texturePathMap[joined],
+						X:         mapX,
+						Y:         mapY - int(textureMap[texturePathMap[joined]].Height),
+						Height:    int(textureMap[texturePathMap[joined]].Height),
+						Width:     int(textureMap[texturePathMap[joined]].Width),
+						Z:         2,
+						TileX:     0,
+						TileY:     0,
+					})
 				}
 			}
 		}
