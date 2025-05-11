@@ -19,6 +19,7 @@ type Game struct {
 type Drawable struct {
 	Z        int
 	Y        float32
+	Height   int
 	DrawFunc func()
 }
 
@@ -82,8 +83,9 @@ func (g *Game) Render() {
 			tileCopy := tile
 
 			drawables = append(drawables, Drawable{
-				Z: tileZ,
-				Y: tileY,
+				Z:      tileZ,
+				Height: tileCopy.Height,
+				Y:      tileY,
 				DrawFunc: func() {
 					dest := rl.NewVector2(float32(tileCopy.X), float32(tileCopy.Y))
 					rl.DrawTextureRec(
@@ -99,8 +101,9 @@ func (g *Game) Render() {
 		// Add player as Z = 2 drawable
 		playerY := g.Player.GetRect().Y
 		drawables = append(drawables, Drawable{
-			Z: 2,
-			Y: playerY,
+			Z:      2,
+			Y:      playerY,
+			Height: 64,
 			DrawFunc: func() {
 				g.Player.Draw()
 			},
@@ -111,7 +114,7 @@ func (g *Game) Render() {
 			if drawables[i].Z != drawables[j].Z {
 				return drawables[i].Z < drawables[j].Z
 			}
-			return drawables[i].Y < drawables[j].Y
+			return drawables[i].Y+float32(drawables[i].Height) < drawables[j].Y+float32(drawables[j].Height)
 		})
 	}()
 
