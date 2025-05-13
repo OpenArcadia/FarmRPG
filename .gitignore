@@ -1,7 +1,11 @@
 farmrpg
 farmrpg.flatpak
+farmrpg_windows.tar.gz
 /repo
 /build-dir
 /.flatpak-builder
 /android/android/build
 /android/.gradle
+/windows-build
+/android/.idea
+/android/local.properties
