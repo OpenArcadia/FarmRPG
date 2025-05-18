@@ -16,6 +16,8 @@ modules:
       - cp farmrpg /app/bin/
       - mkdir -p /app/bin/assets
       - cp -r assets/* /app/bin/assets/
+      - mkdir -p /app/bin/data
+      - cp -r data/* /app/bin/data/
     sources:
       - type: dir
         path: .

@@ -3,7 +3,7 @@ module com.openarcadia.farmrpg
 go 1.24.2
 
 require (
-	github.com/akashKarmakar02/tmx v0.0.0-20250510063828-abcee67d0e6f
+	github.com/akashKarmakar02/tmx v0.0.0-20250517142055-0c0ac76307ef
 	github.com/gen2brain/raylib-go/raylib v0.0.0-20250504022611-e6017e5fc409
 )
 
