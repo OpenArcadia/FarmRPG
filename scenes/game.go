@@ -26,7 +26,7 @@ type Drawable struct {
 func (g *Game) Create() {
 	g.Level = entity.NewLevel()
 	g.Inventory = ui.NewInventory()
-	g.Player = entity.NewPlayer(200, 300, g.Inventory)
+	g.Player = entity.NewPlayer(1050, 1050, g.Inventory, g.Level.MapTextures, g.Level.Trees)
 	g.Camera = &rl.Camera2D{
 		Target:   rl.NewVector2(g.Player.GetRect().X, g.Player.GetRect().Y),
 		Offset:   rl.NewVector2(float32(rl.GetScreenWidth()/2), float32(rl.GetScreenHeight()/2)),
@@ -37,7 +37,24 @@ func (g *Game) Create() {
 
 func (g *Game) Render() {
 	// Update camera target
-	g.Camera.Target = rl.NewVector2(g.Player.GetRect().X, g.Player.GetRect().Y)
+	playerPos := g.Player.GetRect()
+
+	// Assuming level size is based on background texture
+	levelWidth := float32(g.Level.BackgroundTexture.Width)
+	levelHeight := float32(g.Level.BackgroundTexture.Height)
+
+	// Get screen dimensions
+	screenWidth := float32(rl.GetScreenWidth())
+	screenHeight := float32(rl.GetScreenHeight())
+
+	halfScreenWidth := screenWidth / 2
+	halfScreenHeight := screenHeight / 2
+
+	// Clamp camera target to prevent it from moving beyond level edges
+	cameraX := rl.Clamp(playerPos.X, halfScreenWidth, levelWidth-halfScreenWidth)
+	cameraY := rl.Clamp(playerPos.Y, halfScreenHeight, levelHeight-halfScreenHeight)
+
+	g.Camera.Target = rl.NewVector2(cameraX, cameraY)
 
 	// Step 1: Run updates in parallel
 	var wg sync.WaitGroup
@@ -58,7 +75,7 @@ func (g *Game) Render() {
 		g.Inventory.Update()
 	}()
 
-	wg.Wait() // Ensure updates are complete before rendering
+	wg.Wait()
 
 	// Step 2: Render everything (on main thread only)
 	rl.ClearBackground(rl.White)
@@ -81,21 +98,35 @@ func (g *Game) Render() {
 			tileZ := tile.Z
 			tileY := float32(tile.Y)
 			tileCopy := tile
+			if tile.TextureID != 0 {
+				drawables = append(drawables, Drawable{
+					Z:      tileZ,
+					Height: tileCopy.Height,
+					Y:      tileY,
+					DrawFunc: func() {
+						dest := rl.NewVector2(float32(tileCopy.X), float32(tileCopy.Y))
+						rl.DrawTextureRec(
+							*g.Level.TextureCache[tileCopy.TextureID],
+							rl.NewRectangle(float32(tileCopy.TileX), float32(tileCopy.TileY), float32(tileCopy.Width), float32(tileCopy.Height)),
+							dest,
+							rl.White,
+						)
+					},
+				})
+			}
+		}
 
-			drawables = append(drawables, Drawable{
-				Z:      tileZ,
-				Height: tileCopy.Height,
-				Y:      tileY,
-				DrawFunc: func() {
-					dest := rl.NewVector2(float32(tileCopy.X), float32(tileCopy.Y))
-					rl.DrawTextureRec(
-						*g.Level.TextureCache[tileCopy.TextureID],
-						rl.NewRectangle(float32(tileCopy.TileX), float32(tileCopy.TileY), float32(tileCopy.Width), float32(tileCopy.Height)),
-						dest,
-						rl.White,
-					)
-				},
-			})
+		for _, tree := range g.Level.Trees {
+			if tree.TextureID != 0 {
+				drawables = append(drawables, Drawable{
+					Z:      tree.Z,
+					Height: tree.Height,
+					Y:      float32(tree.Y),
+					DrawFunc: func() {
+						tree.Draw(g.Level.TextureCache[tree.TextureID])
+					},
+				})
+			}
 		}
 
 		// Add player as Z = 2 drawable
@@ -110,7 +141,7 @@ func (g *Game) Render() {
 		})
 
 		// First: sort by Z ascending, then by Y (only when Z > 0)
-		sort.Slice(drawables, func(i, j int) bool {
+		sort.SliceStable(drawables, func(i, j int) bool {
 			if drawables[i].Z != drawables[j].Z {
 				return drawables[i].Z < drawables[j].Z
 			}
@@ -123,6 +154,10 @@ func (g *Game) Render() {
 	for _, d := range drawables {
 		d.DrawFunc()
 	}
+
+	// for _, ld := range g.Level.MapTextures {
+	// 	rl.DrawRectangle(int32(ld.GetHitBoxRect().X), int32(ld.GetHitBoxRect().Y), int32(ld.HitBoxWidth), int32(ld.HitBoxHeight), rl.Lime)
+	// }
 
 	rl.EndMode2D()
 

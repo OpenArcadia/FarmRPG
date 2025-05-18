@@ -40,18 +40,30 @@ const (
 )
 
 type Player struct {
-	x          float32
-	y          float32
-	height     int
-	width      int
-	status     PlayerStatus
-	frameIndex float32
-	timer      *map[string]*timer.Timer
-	animations *map[string][]*rl.Texture2D
-	inventory  *ui.Inventory
+	x                float32
+	y                float32
+	height           int
+	width            int
+	status           PlayerStatus
+	frameIndex       float32
+	timer            *map[string]*timer.Timer
+	animations       *map[string][]*rl.Texture2D
+	inventory        *ui.Inventory
+	colidableObjects []*LevelData
+	trees            []*Tree
 }
 
-func NewPlayer(x, y float32, inventory *ui.Inventory) *Player {
+type CollisionInfo struct {
+	Collided bool
+	Top      bool
+	Bottom   bool
+	Left     bool
+	Right    bool
+	Object   *LevelData
+	Tree     *Tree
+}
+
+func NewPlayer(x, y float32, inventory *ui.Inventory, levelData []*LevelData, trees []*Tree) *Player {
 
 	animationsDict := &map[string][]*rl.Texture2D{
 		"down":        make([]*rl.Texture2D, 0),
@@ -86,14 +98,16 @@ func NewPlayer(x, y float32, inventory *ui.Inventory) *Player {
 	}
 
 	p := &Player{
-		x:          x,
-		y:          y,
-		height:     72,
-		width:      60,
-		animations: animationsDict,
-		status:     DownIdle,
-		frameIndex: 0,
-		inventory:  inventory,
+		x:                x,
+		y:                y,
+		height:           72,
+		width:            60,
+		animations:       animationsDict,
+		status:           DownIdle,
+		frameIndex:       0,
+		inventory:        inventory,
+		colidableObjects: levelData,
+		trees:            trees,
 	}
 
 	timerMap := map[string]*timer.Timer{
@@ -114,6 +128,7 @@ func (p *Player) Draw() {
 func (p *Player) Update() {
 	if !(*p.timer)["use tool"].IsActive() {
 		p.handleInput()
+
 		// if player is not moving then setting the state based on movement direction
 		if !rl.IsKeyDown(rl.KeyW) &&
 			!rl.IsKeyDown(rl.KeyA) &&
@@ -182,8 +197,116 @@ func (p *Player) Update() {
 	}
 }
 
+func (p *Player) isColliding() []CollisionInfo {
+	playerRect := *p.GetHitBoxRect()
+	var collisions []CollisionInfo
+
+	for _, obj := range p.colidableObjects {
+		if obj.Z != 2 {
+			continue
+		}
+
+		objRect := *obj.GetHitBoxRect()
+		if objRect.Height > 0 && objRect.Width > 0 && rl.CheckCollisionRecs(playerRect, objRect) {
+			info := CollisionInfo{
+				Collided: true,
+				Object:   obj,
+			}
+
+			// Compute the edges
+			playerRight := playerRect.X + playerRect.Width
+			playerBottom := playerRect.Y + playerRect.Height
+			objRight := objRect.X + objRect.Width
+			objBottom := objRect.Y + objRect.Height
+
+			// Determine which sides are overlapping
+			if playerBottom > objRect.Y && playerRect.Y < objRect.Y {
+				info.Bottom = true // Player is hitting top of the object
+			}
+			if playerRect.Y < objBottom && playerBottom > objBottom {
+				info.Top = true // Player is hitting bottom of the object
+			}
+			if playerRight > objRect.X && playerRect.X < objRect.X {
+				info.Right = true // Player is hitting left side of the object
+			}
+			if playerRect.X < objRight && playerRight > objRight {
+				info.Left = true // Player is hitting right side of the object
+			}
+
+			collisions = append(collisions, info)
+		}
+	}
+
+	for _, obj := range p.trees {
+		if obj.Z != 2 {
+			continue
+		}
+
+		objRect := *obj.GetHitBoxRect()
+		if objRect.Height > 0 && objRect.Width > 0 && rl.CheckCollisionRecs(playerRect, objRect) {
+			info := CollisionInfo{
+				Collided: true,
+				Tree:     obj,
+			}
+
+			// Compute the edges
+			playerRight := playerRect.X + playerRect.Width
+			playerBottom := playerRect.Y + playerRect.Height
+			objRight := objRect.X + objRect.Width
+			objBottom := objRect.Y + objRect.Height
+
+			// Determine which sides are overlapping
+			if playerBottom > objRect.Y && playerRect.Y < objRect.Y {
+				info.Bottom = true // Player is hitting top of the object
+			}
+			if playerRect.Y < objBottom && playerBottom > objBottom {
+				info.Top = true // Player is hitting bottom of the object
+			}
+			if playerRight > objRect.X && playerRect.X < objRect.X {
+				info.Right = true // Player is hitting left side of the object
+			}
+			if playerRect.X < objRight && playerRight > objRight {
+				info.Left = true // Player is hitting right side of the object
+			}
+
+			collisions = append(collisions, info)
+		}
+	}
+
+	return collisions
+}
+
+func getOverlap(player, obj rl.Rectangle) (float32, float32) {
+	pxRight := player.X + player.Width
+	pxBottom := player.Y + player.Height
+	oxRight := obj.X + obj.Width
+	oyBottom := obj.Y + obj.Height
+
+	overlapX := float32(0)
+	overlapY := float32(0)
+
+	if player.X < oxRight && pxRight > obj.X {
+		if pxRight-obj.X < oxRight-player.X {
+			overlapX = pxRight - obj.X
+		} else {
+			overlapX = -(oxRight - player.X)
+		}
+	}
+
+	if player.Y < oyBottom && pxBottom > obj.Y {
+		if pxBottom-obj.Y < oyBottom-player.Y {
+			overlapY = pxBottom - obj.Y
+		} else {
+			overlapY = -(oyBottom - player.Y)
+		}
+	}
+
+	return overlapX, overlapY
+}
+
 func (p *Player) handleInput() {
 	dt := rl.GetFrameTime()
+	collisions := p.isColliding()
 
 	var moveX, moveY float32
 
@@ -204,18 +327,67 @@ func (p *Player) handleInput() {
 		p.status = Left
 	}
 
-	// Normalize the direction vector
+	// Normalize movement
 	length := float32(math.Sqrt(float64(moveX*moveX + moveY*moveY)))
 	if length != 0 {
 		moveX /= length
 		moveY /= length
 	}
 
+	// Adjust movement based on collisions
+	for _, c := range collisions {
+		if !c.Collided {
+			continue
+		}
+
+		if c.Top && moveY < 0 {
+			moveY = 0
+		}
+		if c.Bottom && moveY > 0 {
+			moveY = 0
+		}
+		if c.Left && moveX < 0 {
+			moveX = 0
+		}
+		if c.Right && moveX > 0 {
+			moveX = 0
+		}
+	}
+
+	// Apply movement
 	speed := dt * 250
 	p.x += moveX * speed
 	p.y += moveY * speed
 
-	// tools
+	playerRect := *p.GetHitBoxRect()
+	for _, c := range p.isColliding() {
+		if !c.Collided {
+			continue
+		}
+		var objRect rl.Rectangle
+		if c.Object != nil {
+			objRect = *c.Object.GetHitBoxRect()
+		} else if c.Tree != nil {
+			objRect = *c.Tree.GetHitBoxRect()
+		}
+
+		if rl.CheckCollisionRecs(playerRect, objRect) {
+			overlapX, overlapY := getOverlap(playerRect, objRect)
+
+			if math.Abs(float64(overlapX)) < math.Abs(float64(overlapY)) {
+				// Push in X direction
+				p.x -= overlapX
+			} else {
+				// Push in Y direction
+				p.y -= overlapY
+			}
+
+			// Update player rect after pushing
+			playerRect = *p.GetHitBoxRect()
+		}
+	}
+
+	// Tool use
 	if rl.IsMouseButtonDown(rl.MouseButtonLeft) && !(*p.timer)["use tool"].IsActive() {
 		if p.inventory.SelectedIndex < len(p.inventory.Tools) {
 			(*p.timer)["use tool"].Activate()
@@ -249,5 +421,14 @@ func (p *Player) GetRect() *rl.Rectangle {
 		Y:      float32(p.y),
 		Width:  float32(p.width),
 		Height: float32(p.height),
+	}
+}
+
+func (p *Player) GetHitBoxRect() *rl.Rectangle {
+	return &rl.Rectangle{
+		X:      float32(p.x),
+		Y:      float32(p.y + (float32(p.height) / 2)),
+		Width:  float32(p.width),
+		Height: float32(p.height / 2),
 	}
 }
