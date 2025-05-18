@@ -51,6 +51,7 @@ type Player struct {
 	inventory        *ui.Inventory
 	colidableObjects []*LevelData
 	trees            []*Tree
+	HitBox           *rl.Rectangle
 }
 
 type CollisionInfo struct {
@@ -111,11 +112,19 @@ func NewPlayer(x, y float32, inventory *ui.Inventory, levelData []*LevelData, tr
 	}
 
 	timerMap := map[string]*timer.Timer{
-		"use tool":    timer.NewTimer(750, p.useTool),
+		"use tool":    timer.NewTimer(500, p.useTool),
 		"tool switch": timer.NewTimer(200, nil),
 	}
 
+	hitRect := rl.Rectangle{
+		X:      x,
+		Y:      y,
+		Width:  10,
+		Height: 10,
+	}
+
 	p.timer = &timerMap
+	p.HitBox = &hitRect
 
 	return p
 }
@@ -123,6 +132,25 @@ func NewPlayer(x, y float32, inventory *ui.Inventory, levelData []*LevelData, tr
 func (p *Player) Draw() {
 	rl.DrawEllipse(int32(p.x+32), int32(p.y+64), 20, 8, rl.Fade(rl.Black, 0.3))
 	rl.DrawTexture(*(*p.animations)[p.status.ToString()][int(p.frameIndex)], int32(p.x-55), int32(p.y-32), rl.White)
+}
+
+func (p *Player) UpdateHitBox() {
+	const offset = 10.0
+
+	switch p.status {
+	case Up, UpAxe, UpHoe, UpIdle, UpWater:
+		p.HitBox.X = p.x + float32(p.width)/2 // center horizontally
+		p.HitBox.Y = p.y - offset - 5         // above the player
+	case Down, DownAxe, DownHoe, DownIdle, DownWater:
+		p.HitBox.X = p.x + float32(p.width)/2
+		p.HitBox.Y = p.y + float32(p.height) + 20
+	case Left, LeftAxe, LeftHoe, LeftIdle, LeftWater:
+		p.HitBox.X = p.x - offset - 20
+		p.HitBox.Y = p.y + float32(p.height)/2 + 20
+	case Right, RightAxe, RightHoe, RightIdle, RightWater:
+		p.HitBox.X = p.x + float32(p.width) + 20
+		p.HitBox.Y = p.y + float32(p.height)/2 + 20
+	}
 }
 
 func (p *Player) Update() {
@@ -195,6 +223,8 @@ func (p *Player) Update() {
 		}
 
 	}
+
+	p.UpdateHitBox()
 }
 
 func (p *Player) isColliding() []CollisionInfo {
@@ -239,6 +269,9 @@ func (p *Player) isColliding() []CollisionInfo {
 
 	for _, obj := range p.trees {
 		if obj.Z != 2 {
+			continue
+		}
+		if obj.Health < 1 {
 			continue
 		}
 
@@ -404,7 +437,13 @@ func (p *Player) animate() {
 }
 
 func (p *Player) useTool() {
-	// fmt.Println(p.tool)
+	if p.inventory.Tools[p.inventory.SelectedIndex].Tool == ui.Axe {
+		for _, t := range p.trees {
+			if rl.CheckCollisionRecs(*p.HitBox, *t.GetHitBoxRect()) {
+				t.Damage()
+			}
+		}
+	}
 }
 
 func (p *Player) Dispose() {
@@ -427,8 +466,8 @@ func (p *Player) GetRect() *rl.Rectangle {
 func (p *Player) GetHitBoxRect() *rl.Rectangle {
 	return &rl.Rectangle{
 		X:      float32(p.x),
-		Y:      float32(p.y + (float32(p.height) / 2)),
+		Y:      float32(p.y + (float32(p.height)/2 - 10)),
 		Width:  float32(p.width),
-		Height: float32(p.height / 2),
+		Height: float32(p.height/2) + 10,
 	}
 }
