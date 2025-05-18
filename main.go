@@ -17,6 +17,7 @@ func main() {
 	rl.InitAudioDevice()
 
 	rl.SetExitKey(0)
+	rl.SetTargetFPS(60)
 
 	rl.ToggleFullscreen()
 

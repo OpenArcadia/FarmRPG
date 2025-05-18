@@ -123,6 +123,7 @@ func (g *Game) Render() {
 					Height: tree.Height,
 					Y:      float32(tree.Y),
 					DrawFunc: func() {
+						tree.Update()
 						tree.Draw(g.Level.TextureCache[tree.TextureID])
 					},
 				})
