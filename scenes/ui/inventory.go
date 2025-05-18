@@ -72,17 +72,35 @@ func (i *Inventory) AddItem(inventoryItem *InventoryItem) {
 }
 
 func (in *Inventory) Update() {
-	if rl.IsKeyDown(rl.KeyOne) {
+	if rl.IsKeyPressed(rl.KeyOne) {
 		in.SelectedIndex = 0
-	}
-	if rl.IsKeyDown(rl.KeyTwo) {
+	} else if rl.IsKeyPressed(rl.KeyTwo) {
 		in.SelectedIndex = 1
-	}
-	if rl.IsKeyDown(rl.KeyThree) {
+	} else if rl.IsKeyPressed(rl.KeyThree) {
 		in.SelectedIndex = 2
-	}
-	if rl.IsKeyDown(rl.KeyFour) {
+	} else if rl.IsKeyPressed(rl.KeyFour) {
 		in.SelectedIndex = 3
+	} else if rl.IsKeyPressed(rl.KeyFive) {
+		in.SelectedIndex = 4
+	} else if rl.IsKeyPressed(rl.KeySix) {
+		in.SelectedIndex = 5
+	} else if rl.IsKeyPressed(rl.KeySeven) {
+		in.SelectedIndex = 6
+	} else if rl.IsKeyPressed(rl.KeyEight) {
+		in.SelectedIndex = 7
+	} else if rl.IsKeyPressed(rl.KeyNine) {
+		in.SelectedIndex = 8
+	}
+
+	// Mouse scroll to cycle through inventory
+	scroll := rl.GetMouseWheelMove()
+	if scroll != 0 {
+		in.SelectedIndex -= int(scroll)
+		if in.SelectedIndex < 0 {
+			in.SelectedIndex = in.MaxSize - 1
+		} else if in.SelectedIndex >= in.MaxSize {
+			in.SelectedIndex = 0
+		}
 	}
 }
 
