@@ -6,6 +6,7 @@ import (
 
 	"com.openarcadia.farmrpg/entity"
 	"com.openarcadia.farmrpg/scenes/ui"
+	"com.openarcadia.farmrpg/utils"
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -106,7 +107,7 @@ func (g *Game) Render() {
 					DrawFunc: func() {
 						dest := rl.NewVector2(float32(tileCopy.X), float32(tileCopy.Y))
 						rl.DrawTextureRec(
-							*g.Level.TextureCache[tileCopy.TextureID],
+							*utils.GetTextureFromID(tileCopy.TextureID),
 							rl.NewRectangle(float32(tileCopy.TileX), float32(tileCopy.TileY), float32(tileCopy.Width), float32(tileCopy.Height)),
 							dest,
 							rl.White,
@@ -124,7 +125,7 @@ func (g *Game) Render() {
 					Y:      float32(tree.Y),
 					DrawFunc: func() {
 						tree.Update()
-						tree.Draw(g.Level.TextureCache[tree.TextureID])
+						tree.Draw(utils.GetTextureFromID(tree.TextureID))
 					},
 				})
 			}

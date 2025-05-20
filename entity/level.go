@@ -25,7 +25,6 @@ type LevelData struct {
 type Level struct {
 	BackgroundTexture *rl.Texture2D
 	MapTextures       []*LevelData
-	TextureCache      map[int]*rl.Texture2D
 	Water             *Water
 	WaterLocations    []*WaterLocation
 	Trees             []*Tree
@@ -48,8 +47,6 @@ func NewLevel() *Level {
 
 	textures := make([]*LevelData, 0)
 	layers := []string{"Water", "HouseFloor", "HouseFurnitureBottom"}
-	textureMap := map[int]*rl.Texture2D{}
-	texturePathMap := map[string]int{}
 	waterLocations := make([]*WaterLocation, 0)
 
 	for _, layer := range layers {
@@ -77,32 +74,18 @@ func NewLevel() *Level {
 						continue
 					}
 
-					if texturePathMap[joined] == 0 {
-						texture := rl.LoadTexture(joined)
-						texturePathMap[joined] = int(texture.ID)
-						textureMap[int(texture.ID)] = &texture
-						textures = append(textures, &LevelData{
-							TextureID: int(texture.ID),
-							X:         mapX,
-							Y:         mapY,
-							Z:         0,
-							TileX:     srcX,
-							TileY:     srcY,
-							Height:    64,
-							Width:     64,
-						})
-					} else {
-						textures = append(textures, &LevelData{
-							TextureID: texturePathMap[joined],
-							X:         mapX,
-							Y:         mapY,
-							Z:         0,
-							Height:    64,
-							Width:     64,
-							TileX:     srcX,
-							TileY:     srcY,
-						})
-					}
+					textureID := utils.GetTextureID(joined)
+
+					textures = append(textures, &LevelData{
+						TextureID: textureID,
+						X:         mapX,
+						Y:         mapY,
+						Z:         0,
+						TileX:     srcX,
+						TileY:     srcY,
+						Height:    64,
+						Width:     64,
+					})
 
 				}
 			}
@@ -127,32 +110,18 @@ func NewLevel() *Level {
 					mapX := (i % tileMap.Width) * tileMap.TileWidth
 					mapY := (i / tileMap.Width) * tileMap.TileHeight
 
-					if texturePathMap[joined] == 0 {
-						texture := rl.LoadTexture(joined)
-						texturePathMap[joined] = int(texture.ID)
-						textureMap[int(texture.ID)] = &texture
-						textures = append(textures, &LevelData{
-							TextureID: int(texture.ID),
-							X:         mapX,
-							Y:         mapY,
-							Z:         2,
-							Height:    64,
-							Width:     64,
-							TileX:     srcX,
-							TileY:     srcY,
-						})
-					} else {
-						textures = append(textures, &LevelData{
-							TextureID: texturePathMap[joined],
-							X:         mapX,
-							Y:         mapY,
-							Z:         2,
-							Height:    64,
-							Width:     64,
-							TileX:     srcX,
-							TileY:     srcY,
-						})
-					}
+					textureID := utils.GetTextureID(joined)
+
+					textures = append(textures, &LevelData{
+						TextureID: textureID,
+						X:         mapX,
+						Y:         mapY,
+						Z:         2,
+						Height:    64,
+						Width:     64,
+						TileX:     srcX,
+						TileY:     srcY,
+					})
 
 				}
 			}
@@ -210,17 +179,21 @@ func NewLevel() *Level {
 
 				var hitboxHeight int
 				var hitboxWidth int
-				var texture *rl.Texture2D
 
-				// check texture is loaded or not
-				if texturePathMap[obj.Image.Source] == 0 {
-					loadedTexture := rl.LoadTexture(obj.Image.Source)
-					texture = &loadedTexture
-					texturePathMap[obj.Image.Source] = int(texture.ID)
-					textureMap[int(texture.ID)] = texture
-				} else {
-					texture = textureMap[texturePathMap[obj.Image.Source]]
-				}
+				var texture *rl.Texture2D
+				var textureID int
+				// var stumpTextureID int
+
+				// find stump path for tree
+				// if obj.Name == "Large" {
+				// 	stumpTextureID = utils.GetTextureID(utils.ImportAssetPath("objects/stump_medium.png"))
+				// } else if obj.Name == "Small" {
+				// 	stumpTextureID = utils.GetTextureID(utils.ImportAssetPath("objects/stump_small.png"))
+				// }
+
+				textureID = utils.GetTextureID(obj.Image.Source)
+
+				texture = utils.GetTextureFromID(textureID)
 
 				// tree need different collision hitbox
 				if objectGroupName == "Trees" {
@@ -232,10 +205,14 @@ func NewLevel() *Level {
 				}
 
 				if objectGroupName == "Trees" {
-					trees = append(trees, NewTree(mapX, mapY-int(texture.Height), 2, 0, 0, int(texture.Width), int(texture.Height), hitboxWidth, hitboxHeight, 5, int(texture.ID)))
+					treeType := LargeTree
+					if obj.Name == "Small" {
+						treeType = SmallTree
+					}
+					trees = append(trees, NewTree(mapX, mapY-int(texture.Height), 2, 0, 0, int(texture.Width), int(texture.Height), hitboxWidth, hitboxHeight, 5, textureID, treeType))
 				} else {
 					textures = append(textures, &LevelData{
-						TextureID:    int(texture.ID),
+						TextureID:    textureID,
 						X:            mapX,
 						Y:            mapY - int(texture.Height),
 						Height:       int(texture.Height),
@@ -255,7 +232,6 @@ func NewLevel() *Level {
 	return &Level{
 		BackgroundTexture: levelTexture,
 		MapTextures:       textures,
-		TextureCache:      textureMap,
 		Water:             NewWater(),
 		WaterLocations:    waterLocations,
 		Trees:             trees,
@@ -273,7 +249,4 @@ func (ld *LevelData) GetHitBoxRect() *rl.Rectangle {
 
 func (l *Level) Dispose() {
 	rl.UnloadTexture(*l.BackgroundTexture)
-	for _, texture := range l.TextureCache {
-		rl.UnloadTexture(*texture)
-	}
 }
